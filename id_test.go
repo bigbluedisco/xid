@@ -16,30 +16,26 @@ type IDParts struct {
 	id        ID
 	timestamp int64
 	machine   []byte
-	pid       uint16
 	counter   int32
 }
 
 var IDs = []IDParts{
 	{
-		ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0xe4, 0x28, 0x41, 0x2d, 0xc9},
+		ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0x41, 0x2d, 0xc9},
 		1300816219,
 		[]byte{0x60, 0xf4, 0x86},
-		0xe428,
 		4271561,
 	},
 	{
-		ID{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		ID{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		0,
 		[]byte{0x00, 0x00, 0x00},
-		0x0000,
 		0,
 	},
 	{
-		ID{0x00, 0x00, 0x00, 0x00, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0x00, 0x00, 0x01},
+		ID{0x00, 0x00, 0x00, 0x00, 0xaa, 0xbb, 0xcc, 0x00, 0x00, 0x01},
 		0,
 		[]byte{0xaa, 0xbb, 0xcc},
-		0xddee,
 		1,
 	},
 }
@@ -53,9 +49,6 @@ func TestIDPartsExtraction(t *testing.T) {
 			if got, want := v.id.Machine(), v.machine; !bytes.Equal(got, want) {
 				t.Errorf("Machine() = %v, want %v", got, want)
 			}
-			if got, want := v.id.Pid(), v.pid; got != want {
-				t.Errorf("Pid() = %v, want %v", got, want)
-			}
 			if got, want := v.id.Counter(), v.counter; got != want {
 				t.Errorf("Counter() = %v, want %v", got, want)
 			}
@@ -65,11 +58,11 @@ func TestIDPartsExtraction(t *testing.T) {
 
 func TestPadding(t *testing.T) {
 	for i := 0; i < 100000; i++ {
-		wantBytes := make([]byte, 20)
-		wantBytes[19] = encoding[0]                       // 0
-		copy(wantBytes[0:13], []byte("c6e52g2mrqcjl")[:]) // c6e52g2mrqcjl44hf170
+		wantBytes := make([]byte, 16)
+		wantBytes[15] = encoding[0]                  // 0
+		copy(wantBytes[0:9], []byte("c6e52g2mr")[:]) // c6e52g2mrqcjl44hf170
 		for j := 0; j < 6; j++ {
-			wantBytes[13+j] = encoding[rand.Intn(32)]
+			wantBytes[9+j] = encoding[rand.Intn(32)]
 		}
 		want := string(wantBytes)
 		id, _ := FromString(want)
@@ -106,10 +99,6 @@ func TestNew(t *testing.T) {
 		if !bytes.Equal(id.Machine(), prevID.Machine()) {
 			t.Error("machine ID not equal")
 		}
-		// Check that pids are the same
-		if id.Pid() != prevID.Pid() {
-			t.Error("pid not equal")
-		}
 		// Test for proper increment
 		if got, want := int(id.Counter()-prevID.Counter()), 1; got != want {
 			t.Errorf("wrong increment in generated ID, delta=%v, want %v", got, want)
@@ -118,26 +107,26 @@ func TestNew(t *testing.T) {
 }
 
 func TestIDString(t *testing.T) {
-	id := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0xe4, 0x28, 0x41, 0x2d, 0xc9}
-	if got, want := id.String(), "9m4e2mr0ui3e8a215n4g"; got != want {
+	id := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0x41, 0x2d, 0xc9}
+	if got, want := id.String(), "9p4e2pv0yj342be9"; got != want {
 		t.Errorf("String() = %v, want %v", got, want)
 	}
 }
 
 func TestIDEncode(t *testing.T) {
-	id := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0xe4, 0x28, 0x41, 0x2d, 0xc9}
+	id := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0x41, 0x2d, 0xc9}
 	text := make([]byte, encodedLen)
-	if got, want := string(id.Encode(text)), "9m4e2mr0ui3e8a215n4g"; got != want {
+	if got, want := string(id.Encode(text)), "9p4e2pv0yj342be9"; got != want {
 		t.Errorf("Encode() = %v, want %v", got, want)
 	}
 }
 
 func TestFromString(t *testing.T) {
-	got, err := FromString("9m4e2mr0ui3e8a215n4g")
+	got, err := FromString("9p4e2pv0yj342be9")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0xe4, 0x28, 0x41, 0x2d, 0xc9}
+	want := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0x41, 0x2d, 0xc9}
 	if got != want {
 		t.Errorf("FromString() = %v, want %v", got, want)
 	}
@@ -160,29 +149,28 @@ type jsonType struct {
 }
 
 func TestIDJSONMarshaling(t *testing.T) {
-	id := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0xe4, 0x28, 0x41, 0x2d, 0xc9}
+	id := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0x41, 0x2d, 0xc9}
 	v := jsonType{ID: &id, Str: "test"}
 	data, err := json.Marshal(&v)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got, want := string(data), `{"ID":"9m4e2mr0ui3e8a215n4g","Str":"test"}`; got != want {
+	if got, want := string(data), `{"ID":"9p4e2pv0yj342be9","Str":"test"}`; got != want {
 		t.Errorf("json.Marshal() = %v, want %v", got, want)
 	}
 }
 
 func TestIDJSONUnmarshaling(t *testing.T) {
-	data := []byte(`{"ID":"9m4e2mr0ui3e8a215n4g","Str":"test"}`)
+	data := []byte(`{"ID":"9p4e2pv0yj342be9","Str":"test"}`)
 	v := jsonType{}
 	err := json.Unmarshal(data, &v)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0xe4, 0x28, 0x41, 0x2d, 0xc9}
+	want := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0x41, 0x2d, 0xc9}
 	if got := *v.ID; got.Compare(want) != 0 {
 		t.Errorf("json.Unmarshal() = %v, want %v", got, want)
 	}
-
 }
 
 func TestIDJSONUnmarshalingError(t *testing.T) {
@@ -206,23 +194,23 @@ func TestIDJSONUnmarshalingError(t *testing.T) {
 }
 
 func TestIDDriverValue(t *testing.T) {
-	id := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0xe4, 0x28, 0x41, 0x2d, 0xc9}
+	id := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0x41, 0x2d, 0xc9}
 	got, err := id.Value()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := "9m4e2mr0ui3e8a215n4g"; got != want {
+	if want := "9p4e2pv0yj342be9"; got != want {
 		t.Errorf("Value() = %v, want %v", got, want)
 	}
 }
 
 func TestIDDriverScan(t *testing.T) {
 	got := ID{}
-	err := got.Scan("9m4e2mr0ui3e8a215n4g")
+	err := got.Scan("9p4e2pv0yj342be9")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0xe4, 0x28, 0x41, 0x2d, 0xc9}
+	want := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0x41, 0x2d, 0xc9}
 	if got.Compare(want) != 0 {
 		t.Errorf("Scan() = %v, want %v", got, want)
 	}
@@ -240,12 +228,12 @@ func TestIDDriverScanError(t *testing.T) {
 
 func TestIDDriverScanByteFromDatabase(t *testing.T) {
 	got := ID{}
-	bs := []byte("9m4e2mr0ui3e8a215n4g")
+	bs := []byte("9p4e2pv0yj342be9")
 	err := got.Scan(bs)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0xe4, 0x28, 0x41, 0x2d, 0xc9}
+	want := ID{0x4d, 0x88, 0xe1, 0x5b, 0x60, 0xf4, 0x86, 0x41, 0x2d, 0xc9}
 	if got.Compare(want) != 0 {
 		t.Errorf("Scan() = %v, want %v", got, want)
 	}
@@ -401,8 +389,9 @@ func TestFromBytes_InvalidBytes(t *testing.T) {
 		length     int
 		shouldFail bool
 	}{
+		{10, false},
 		{11, true},
-		{12, false},
+		{12, true},
 		{13, true},
 	}
 	for _, c := range cases {

@@ -4,6 +4,16 @@
 
 Package xid is a globally unique id generator library, ready to safely be used directly in your server code.
 
+---
+
+## Bigblue Edit
+
+1. Remove process id from the generated ID.
+2. Change the byte size to 10 bytes, and base32 version to 16 chars.
+3. Move the base32 id to Crockford encoding for human readability optimization.
+
+---
+
 Xid uses the Mongo Object ID algorithm to generate globally unique ids with a different serialization (base64) to make it shorter when transported as a string:
 https://docs.mongodb.org/manual/reference/object-id/
 
@@ -29,18 +39,18 @@ generator servers. xid stands in between with 12 bytes (96 bits) and a more comp
 URL-safe string representation (20 chars). No configuration or central generator server
 is required so it can be used directly in server's code.
 
-| Name        | Binary Size | String Size    | Features
-|-------------|-------------|----------------|----------------
-| [UUID]      | 16 bytes    | 36 chars       | configuration free, not sortable
-| [shortuuid] | 16 bytes    | 22 chars       | configuration free, not sortable
-| [Snowflake] | 8 bytes     | up to 20 chars | needs machine/DC configuration, needs central server, sortable
-| [MongoID]   | 12 bytes    | 24 chars       | configuration free, sortable
-| xid         | 12 bytes    | 20 chars       | configuration free, sortable
+| Name        | Binary Size | String Size    | Features                                                       |
+| ----------- | ----------- | -------------- | -------------------------------------------------------------- |
+| [UUID]      | 16 bytes    | 36 chars       | configuration free, not sortable                               |
+| [shortuuid] | 16 bytes    | 22 chars       | configuration free, not sortable                               |
+| [Snowflake] | 8 bytes     | up to 20 chars | needs machine/DC configuration, needs central server, sortable |
+| [MongoID]   | 12 bytes    | 24 chars       | configuration free, sortable                                   |
+| xid         | 12 bytes    | 20 chars       | configuration free, sortable                                   |
 
-[UUID]: https://en.wikipedia.org/wiki/Universally_unique_identifier
+[uuid]: https://en.wikipedia.org/wiki/Universally_unique_identifier
 [shortuuid]: https://github.com/stochastic-technologies/shortuuid
-[Snowflake]: https://blog.twitter.com/2010/announcing-snowflake
-[MongoID]: https://docs.mongodb.org/manual/reference/object-id/
+[snowflake]: https://blog.twitter.com/2010/announcing-snowflake
+[mongoid]: https://docs.mongodb.org/manual/reference/object-id/
 
 Features:
 

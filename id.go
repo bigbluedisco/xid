@@ -48,8 +48,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"fmt"
-	"hash/crc32"
-	"io/ioutil"
 	"os"
 	"sort"
 	"sync/atomic"
@@ -63,12 +61,13 @@ import (
 type ID [rawLen]byte
 
 const (
-	encodedLen = 20 // string encoded len
-	rawLen     = 12 // binary raw len
+	encodedLen = 16 // string encoded len
+	rawLen     = 10 // binary raw len
 
 	// encoding stores a custom version of the base32 encoding with lower case
 	// letters.
-	encoding = "0123456789abcdefghijklmnopqrstuv"
+	// EDIT: Crockford base32 for readability.
+	encoding = "0123456789abcdefghjkmnpqrstvwxyz"
 )
 
 var (
@@ -80,9 +79,6 @@ var (
 	// machineId stores machine id generated once and used in subsequent calls
 	// to NewObjectId function.
 	machineID = readMachineID()
-
-	// pid stores the current process id
-	pid = os.Getpid()
 
 	nilID ID
 
@@ -96,14 +92,6 @@ func init() {
 	}
 	for i := 0; i < len(encoding); i++ {
 		dec[encoding[i]] = byte(i)
-	}
-
-	// If /proc/self/cpuset exists and is not /, we can assume that we are in a
-	// form of container and use the content of cpuset xor-ed with the PID in
-	// order get a reasonable machine global unique PID.
-	b, err := ioutil.ReadFile("/proc/self/cpuset")
-	if err == nil && len(b) > 1 {
-		pid ^= int(crc32.ChecksumIEEE(b))
 	}
 }
 
@@ -152,14 +140,11 @@ func NewWithTime(t time.Time) ID {
 	id[4] = machineID[0]
 	id[5] = machineID[1]
 	id[6] = machineID[2]
-	// Pid, 2 bytes, specs don't specify endianness, but we use big endian.
-	id[7] = byte(pid >> 8)
-	id[8] = byte(pid)
 	// Increment, 3 bytes, big endian
 	i := atomic.AddUint32(&objectIDCounter, 1)
-	id[9] = byte(i >> 16)
-	id[10] = byte(i >> 8)
-	id[11] = byte(i)
+	id[7] = byte(i >> 16)
+	id[8] = byte(i >> 8)
+	id[9] = byte(i)
 	return id
 }
 
@@ -203,13 +188,9 @@ func (id ID) MarshalJSON() ([]byte, error) {
 
 // encode by unrolling the stdlib base32 algorithm + removing all safe checks
 func encode(dst, id []byte) {
-	_ = dst[19]
-	_ = id[11]
+	_ = dst[15]
+	_ = id[9]
 
-	dst[19] = encoding[(id[11]<<4)&0x1F]
-	dst[18] = encoding[(id[11]>>1)&0x1F]
-	dst[17] = encoding[(id[11]>>6)&0x1F|(id[10]<<2)&0x1F]
-	dst[16] = encoding[id[10]>>3]
 	dst[15] = encoding[id[9]&0x1F]
 	dst[14] = encoding[(id[9]>>5)|(id[8]<<3)&0x1F]
 	dst[13] = encoding[(id[8]>>2)&0x1F]
@@ -261,16 +242,15 @@ func (id *ID) UnmarshalJSON(b []byte) error {
 
 // decode by unrolling the stdlib base32 algorithm + customized safe check.
 func decode(id *ID, src []byte) bool {
-	_ = src[19]
-	_ = id[11]
+	_ = src[15]
+	_ = id[9]
 
-	id[11] = dec[src[17]]<<6 | dec[src[18]]<<1 | dec[src[19]]>>4
+	// id[11] = dec[src[17]]<<6 | dec[src[18]]<<1 | dec[src[19]]>>4
+	id[9] = dec[src[14]]<<5 | dec[src[15]]
 	// check the last byte
-	if encoding[(id[11]<<4)&0x1F] != src[19] {
+	if encoding[id[9]&0x1F] != src[15] {
 		return false
 	}
-	id[10] = dec[src[16]]<<3 | dec[src[17]]>>2
-	id[9] = dec[src[14]]<<5 | dec[src[15]]
 	id[8] = dec[src[12]]<<7 | dec[src[13]]<<2 | dec[src[14]]>>3
 	id[7] = dec[src[11]]<<4 | dec[src[12]]>>1
 	id[6] = dec[src[9]]<<6 | dec[src[10]]<<1 | dec[src[11]]>>4
@@ -297,16 +277,10 @@ func (id ID) Machine() []byte {
 	return id[4:7]
 }
 
-// Pid returns the process id part of the id.
-// It's a runtime error to call this method with an invalid id.
-func (id ID) Pid() uint16 {
-	return binary.BigEndian.Uint16(id[7:9])
-}
-
 // Counter returns the incrementing value part of the id.
 // It's a runtime error to call this method with an invalid id.
 func (id ID) Counter() int32 {
-	b := id[9:12]
+	b := id[7:10]
 	// Counter is stored as big-endian 3-byte value
 	return int32(uint32(b[0])<<16 | uint32(b[1])<<8 | uint32(b[2]))
 }
